@@ -5,25 +5,98 @@
 # Created by: PyQt5 UI code generator 5.9.2
 #
 # WARNING! All changes made in this file will be lost!
+import time
+
+from PyQt5.QtCore import pyqtSignal
+from timeloop import  Timeloop
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from chat import Ui_Chat
-from PyQt5.QtWidgets import QListWidgetItem  
+from PyQt5.QtWidgets import QListWidgetItem
+
+class QThread1(QtCore.QThread):
+
+    sig1 = pyqtSignal(object)
+
+    def __init__(self,client,parent=None):
+        QtCore.QThread.__init__(self, parent)
+        self.client =client
+
+    def run(self):
+        self.running = True
+        while self.running:
+            self.sig1.emit(self.client.get_logged_users())
+            time.sleep(10)
+
+class QThread2(QtCore.QThread):
+
+    sig2 = pyqtSignal(object)
+
+    def __init__(self,client,parent=None):
+        QtCore.QThread.__init__(self, parent)
+        self.client = client
+
+    def run(self):
+        self.running = True
+        while self.running:
+            if self.client.new == True :
+                self.client.new = False
+                message = self.client.message
+                self.sig2.emit(message)
+                time.sleep(5)
+
+
+
+
 class Ui_Post_Login(object):
 
     def __init__(self,client):
+
         self.client = client
+        self.thread1 = QThread1(self.client)
+        self.users = []
+        self.ui = None
+
+    def handle_message(self,message):
+        user = next(user for user in self.users if user["user"] == message['from'])
+        if self.ui == None :
+            self.showChat(user,message['msg'])
+        else :
+            self.ui.add_message(message['msg'])
+
+
    
-    def showChat(self,user):
+    def showChat(self,user,msg = None):
         self.chatWindow =QtWidgets.QDialog()
         self.ui = Ui_Chat(self.client)
         #######################################
         self.ui.setupUi(self.chatWindow,user)
         #######################################
         self.chatWindow.show()
+        if msg != None :
+            self.ui.add_message(msg)
+
+    def setupUsersList(self,users):
+        self.listWidget.clear()
+        self.users = users
+        for user in users:
+            if user['user'] != self.client.commonName:
+                item = QtWidgets.QListWidgetItem()
+                item.setText(user['user'])
+                self.listWidget.addItem(item)
+        self.listWidget.itemClicked.connect(lambda: self.showChat(
+            next(user for user in users if user["user"] == self.listWidget.currentItem().text())))
+        self.verticalLayout.addWidget(self.listWidget)
 
     def setupUi(self, Form , data):
+        print(self.client.message)
+        self.thread1 = QThread1(self.client)
+        self.thread2 = QThread2(self.client)
+        self.thread1.start()
+        self.thread1.sig1.connect(self.setupUsersList)
+        self.thread2.start()
+        self.thread2.sig2.connect(self.handle_message)
         Form.setObjectName("Form")
         Form.resize(334, 410)
         self.widget = QtWidgets.QWidget(Form)
@@ -63,20 +136,14 @@ class Ui_Post_Login(object):
         self.label_3.setObjectName("label_3")
         self.verticalLayout.addWidget(self.label_3)
         self.listWidget = QtWidgets.QListWidget(self.widget)
-        users = self.client.get_logged_users()
         self.listWidget.setObjectName("listWidget")
-        for user in users:
-            if user['user'] != self.client.commonName :
-                item = QtWidgets.QListWidgetItem()
-                item.setText(user['user'])
-                self.listWidget.addItem(item)
-        self.listWidget.itemClicked.connect(lambda: self.showChat(next(user for user in users if user["user"] == self.listWidget.currentItem().text())))
-        self.verticalLayout.addWidget(self.listWidget)
-
+        self.thread1.start()
+        self.thread1.sig1.connect(self.setupUsersList)
+        self.thread2.start()
+        self.thread2.sig2.connect(self.handle_message)
         self.retranslateUi(Form)
         QtCore.QMetaObject.connectSlotsByName(Form)
 
-        def setupUsersList(self):
 
 
     def retranslateUi(self, Form):

@@ -47,6 +47,7 @@ class Ui_Dialog(object):
         res = self.client.sign_in(username,password,certif)
         if res['res'] == True :
             paths = self.client.check_certif_key(username)
+            self.client.run()
             self.showPostLogin(paths)
 
 

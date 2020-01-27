@@ -28,12 +28,17 @@ def format_data(data) :
     return data,headers
 
 class Client :
-    def __int__(self):
+    def __init__(self):
         self.users = []
         self.sock = None
         self.commonName = ''
         self.username = ''
         self.password = ''
+        self.new = False
+        self.message = {}
+
+
+
 
     def set_info(self,commonName,username,password):
         self.commonName = commonName
@@ -111,7 +116,6 @@ class Client :
     def get_logged_users(self):
         r = requests.get(url + "users")
         r = r.json()
-        print(r)
         self.users = r['users']
         return self.users
 
@@ -134,6 +138,13 @@ class Client :
                 )
                 decrypted = base64.b64decode(decrypted).decode('utf-8')
                 print('message from {}  : {}'.format(messager,decrypted))
+                self.new = True
+                self.message = {
+                    "from" : messager,
+                    "msg" : decrypted
+                }
+
+
             except OSError as e:  # Possibly client has left the chat.
                 traceback.print_exc()
                 break
@@ -142,7 +153,6 @@ class Client :
 
     def send(self,msg, commonName):
         """ Handles sending of messages. """
-        print(len(self.users))
         self.get_logged_users()
         for user in self.users:
             if user['user'] == commonName:
@@ -167,25 +177,15 @@ class Client :
         self.send(message,user)
 
     def run(self):
-        choice = input('1 : for sign in and 2 for sign up')
-        choice = int(choice)
-        if choice == 1:
-            res = self.sign_in()
-        else :
-            res = self.sign_up()
-        print(res)
-        if res['res'] == True :
-            self.sock = socket(AF_INET, SOCK_STREAM)
-            self.sock.connect(ADDR)
-            data = {
-                'commonName': self.commonName
-            }
-            data = json.dumps(data).encode("utf-8")
-            self.sock.sendall(data)
-            receive_thread = Thread(target=self.receive)
-            receive_thread.start()
-            thread = Timer(5.0, self.test)
-            thread.start()
+        self.sock = socket(AF_INET, SOCK_STREAM)
+        self.sock.connect(ADDR)
+        data = {
+            'commonName': self.commonName
+        }
+        data = json.dumps(data).encode("utf-8")
+        self.sock.sendall(data)
+        receive_thread = Thread(target=self.receive)
+        receive_thread.start()
 
 
 
